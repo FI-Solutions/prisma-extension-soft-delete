@@ -1,24 +1,26 @@
-import { Prisma } from "@prisma/client";
 import { addDeletedToSelect, isDeletedFieldOverWritten, } from "../utils/nestedReads";
-const uniqueFieldsByModel = {};
-const uniqueIndexFieldsByModel = {};
-Prisma.dmmf.datamodel.models.forEach((model) => {
-    // add unique fields derived from indexes
-    const uniqueIndexFields = [];
-    model.uniqueFields.forEach((field) => {
-        uniqueIndexFields.push(field.join("_"));
+export const createContext = (dmmf) => {
+    const uniqueFieldsByModel = {};
+    const uniqueIndexFieldsByModel = {};
+    dmmf.datamodel.models.forEach((model) => {
+        // add unique fields derived from indexes
+        const uniqueIndexFields = [];
+        model.uniqueFields.forEach((field) => {
+            uniqueIndexFields.push(field.join("_"));
+        });
+        uniqueIndexFieldsByModel[model.name] = uniqueIndexFields;
+        // add id field and unique fields from @unique decorator
+        const uniqueFields = [];
+        model.fields.forEach((field) => {
+            if (field.isId || field.isUnique) {
+                uniqueFields.push(field.name);
+            }
+        });
+        uniqueFieldsByModel[model.name] = uniqueFields;
     });
-    uniqueIndexFieldsByModel[model.name] = uniqueIndexFields;
-    // add id field and unique fields from @unique decorator
-    const uniqueFields = [];
-    model.fields.forEach((field) => {
-        if (field.isId || field.isUnique) {
-            uniqueFields.push(field.name);
-        }
-    });
-    uniqueFieldsByModel[model.name] = uniqueFields;
-});
-export const createDeleteParams = ({ field, createValue }, params) => {
+    return { uniqueFieldsByModel, uniqueIndexFieldsByModel };
+};
+export const createDeleteParams = (_, { field, createValue }, params) => {
     var _a, _b;
     if (!params.model ||
         // do nothing for delete: false
@@ -54,7 +56,7 @@ export const createDeleteParams = ({ field, createValue }, params) => {
         },
     };
 };
-export const createDeleteManyParams = (config, params) => {
+export const createDeleteManyParams = (_, config, params) => {
     var _a;
     if (!params.model)
         return { params };
@@ -75,7 +77,7 @@ export const createDeleteManyParams = (config, params) => {
         },
     };
 };
-export const createUpdateParams = (config, params) => {
+export const createUpdateParams = (_, config, params) => {
     var _a, _b, _c, _d;
     if (((_a = params.scope) === null || _a === void 0 ? void 0 : _a.relations) &&
         !params.scope.relations.to.isList &&
@@ -89,7 +91,7 @@ export const createUpdateParams = (config, params) => {
     }
     return { params };
 };
-export const createUpdateManyParams = (config, params) => {
+export const createUpdateManyParams = (_, config, params) => {
     var _a, _b;
     // do nothing if args are not defined to allow Prisma to throw an error
     if (!params.args)
@@ -110,15 +112,16 @@ export const createUpdateManyParams = (config, params) => {
         },
     };
 };
-export const createUpsertParams = (_, params) => {
+export const createUpsertParams = (_, __, params) => {
     var _a, _b;
     if (((_a = params.scope) === null || _a === void 0 ? void 0 : _a.relations) && !params.scope.relations.to.isList) {
         throw new Error(`prisma-extension-soft-delete: upsert of model "${params.model}" through "${(_b = params.scope) === null || _b === void 0 ? void 0 : _b.parentParams.model}.${params.scope.relations.to.name}" found. Upserts of soft deleted models through a toOne relation is not supported as it is possible to update a soft deleted record.`);
     }
     return { params };
 };
-function validateFindUniqueParams(params, config) {
+function validateFindUniqueParams(context, params, config) {
     var _a;
+    const { uniqueIndexFieldsByModel } = context;
     const uniqueIndexFields = uniqueIndexFieldsByModel[params.model || ""] || [];
     const uniqueIndexField = Object.keys(((_a = params.args) === null || _a === void 0 ? void 0 : _a.where) || {}).find((key) => uniqueIndexFields.includes(key));
     // when unique index field is found it is not possible to use findFirst.
@@ -128,8 +131,9 @@ function validateFindUniqueParams(params, config) {
         throw new Error(`prisma-extension-soft-delete: query of model "${params.model}" through compound unique index field "${uniqueIndexField}" found. Queries of soft deleted models through a unique index are not supported. Set "allowCompoundUniqueIndexWhere" to true to override this behaviour.`);
     }
 }
-function shouldPassFindUniqueParamsThrough(params, config) {
+function shouldPassFindUniqueParamsThrough(context, params, config) {
     var _a, _b;
+    const { uniqueFieldsByModel, uniqueIndexFieldsByModel } = context;
     const uniqueFields = uniqueFieldsByModel[params.model || ""] || [];
     const uniqueIndexFields = uniqueIndexFieldsByModel[params.model || ""] || [];
     const uniqueIndexField = Object.keys(((_a = params.args) === null || _a === void 0 ? void 0 : _a.where) || {}).find((key) => uniqueIndexFields.includes(key));
@@ -144,12 +148,12 @@ function shouldPassFindUniqueParamsThrough(params, config) {
         // pass through if where object has a unique index field and allowCompoundUniqueIndexWhere is true
         !!(uniqueIndexField && config.allowCompoundUniqueIndexWhere));
 }
-export const createFindUniqueParams = (config, params) => {
-    var _a;
-    if (shouldPassFindUniqueParamsThrough(params, config)) {
+export const createFindUniqueParams = (context, config, params) => {
+    var _a, _b;
+    if (shouldPassFindUniqueParamsThrough(context, params, config)) {
         return { params };
     }
-    validateFindUniqueParams(params, config);
+    validateFindUniqueParams(context, params, config);
     return {
         params: {
             ...params,
@@ -158,18 +162,21 @@ export const createFindUniqueParams = (config, params) => {
                 ...params.args,
                 where: {
                     ...(_a = params.args) === null || _a === void 0 ? void 0 : _a.where,
-                    [config.field]: config.createValue(false),
+                    // allow overriding the deleted field in where
+                    ...(isDeletedFieldOverWritten(config.field, (_b = params.args) === null || _b === void 0 ? void 0 : _b.where)
+                        ? {}
+                        : { [config.field]: config.createValue(false) }),
                 },
             },
         },
     };
 };
-export const createFindUniqueOrThrowParams = (config, params) => {
-    var _a;
-    if (shouldPassFindUniqueParamsThrough(params, config)) {
+export const createFindUniqueOrThrowParams = (context, config, params) => {
+    var _a, _b;
+    if (shouldPassFindUniqueParamsThrough(context, params, config)) {
         return { params };
     }
-    validateFindUniqueParams(params, config);
+    validateFindUniqueParams(context, params, config);
     return {
         params: {
             ...params,
@@ -178,13 +185,16 @@ export const createFindUniqueOrThrowParams = (config, params) => {
                 ...params.args,
                 where: {
                     ...(_a = params.args) === null || _a === void 0 ? void 0 : _a.where,
-                    [config.field]: config.createValue(false),
+                    // allow overriding the deleted field in where
+                    ...(isDeletedFieldOverWritten(config.field, (_b = params.args) === null || _b === void 0 ? void 0 : _b.where)
+                        ? {}
+                        : { [config.field]: config.createValue(false) }),
                 },
             },
         },
     };
 };
-export const createFindFirstParams = (config, params) => {
+export const createFindFirstParams = (_, config, params) => {
     var _a, _b;
     return {
         params: {
@@ -203,7 +213,7 @@ export const createFindFirstParams = (config, params) => {
         },
     };
 };
-export const createFindFirstOrThrowParams = (config, params) => {
+export const createFindFirstOrThrowParams = (_, config, params) => {
     var _a, _b;
     return {
         params: {
@@ -222,7 +232,7 @@ export const createFindFirstOrThrowParams = (config, params) => {
         },
     };
 };
-export const createFindManyParams = (config, params) => {
+export const createFindManyParams = (_, config, params) => {
     var _a, _b;
     return {
         params: {
@@ -242,7 +252,7 @@ export const createFindManyParams = (config, params) => {
     };
 };
 /*GroupBy */
-export const createGroupByParams = (config, params) => {
+export const createGroupByParams = (_, config, params) => {
     var _a, _b;
     return {
         params: {
@@ -261,7 +271,7 @@ export const createGroupByParams = (config, params) => {
         },
     };
 };
-export const createCountParams = (config, params) => {
+export const createCountParams = (_, config, params) => {
     const args = params.args || {};
     const where = args.where || {};
     return {
@@ -280,7 +290,7 @@ export const createCountParams = (config, params) => {
         },
     };
 };
-export const createAggregateParams = (config, params) => {
+export const createAggregateParams = (_, config, params) => {
     const args = params.args || {};
     const where = args.where || {};
     return {
@@ -299,7 +309,7 @@ export const createAggregateParams = (config, params) => {
         },
     };
 };
-export const createWhereParams = (config, params) => {
+export const createWhereParams = (_, config, params) => {
     var _a;
     if (!params.scope)
         return { params };
@@ -327,7 +337,7 @@ export const createWhereParams = (config, params) => {
         },
     };
 };
-export const createIncludeParams = (config, params) => {
+export const createIncludeParams = (_, config, params) => {
     var _a, _b, _c, _d, _e, _f;
     // includes of toOne relation cannot filter deleted records using params
     // instead ensure that the deleted field is selected and filter the results
@@ -356,7 +366,7 @@ export const createIncludeParams = (config, params) => {
         },
     };
 };
-export const createSelectParams = (config, params) => {
+export const createSelectParams = (_, config, params) => {
     var _a, _b, _c, _d, _e, _f;
     // selects in includes are handled by createIncludeParams
     if (((_a = params.scope) === null || _a === void 0 ? void 0 : _a.parentParams.operation) === "include") {

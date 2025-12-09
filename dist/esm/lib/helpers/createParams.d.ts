@@ -1,5 +1,7 @@
 import { NestedParams } from "@roundtreasury/prisma-extension-nested-operations";
-import { ModelConfig } from "../types";
+import type { BaseDMMF } from "@prisma/client/runtime/library";
+import { Context, ModelConfig } from "../types";
+export declare const createContext: (dmmf: BaseDMMF) => Context;
 export type Params = Omit<NestedParams<any>, "operation"> & {
     operation: string;
 };
@@ -7,7 +9,7 @@ export type CreateParamsReturn = {
     params: Params;
     ctx?: any;
 };
-export type CreateParams = (config: ModelConfig, params: Params) => CreateParamsReturn;
+export type CreateParams = (context: Context, config: ModelConfig, params: Params) => CreateParamsReturn;
 export declare const createDeleteParams: CreateParams;
 export declare const createDeleteManyParams: CreateParams;
 export declare const createUpdateParams: CreateParams;

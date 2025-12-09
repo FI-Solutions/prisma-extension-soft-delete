@@ -1,27 +1,30 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createSelectParams = exports.createIncludeParams = exports.createWhereParams = exports.createAggregateParams = exports.createCountParams = exports.createGroupByParams = exports.createFindManyParams = exports.createFindFirstOrThrowParams = exports.createFindFirstParams = exports.createFindUniqueOrThrowParams = exports.createFindUniqueParams = exports.createUpsertParams = exports.createUpdateManyParams = exports.createUpdateParams = exports.createDeleteManyParams = exports.createDeleteParams = void 0;
-const client_1 = require("@prisma/client");
+exports.createSelectParams = exports.createIncludeParams = exports.createWhereParams = exports.createAggregateParams = exports.createCountParams = exports.createGroupByParams = exports.createFindManyParams = exports.createFindFirstOrThrowParams = exports.createFindFirstParams = exports.createFindUniqueOrThrowParams = exports.createFindUniqueParams = exports.createUpsertParams = exports.createUpdateManyParams = exports.createUpdateParams = exports.createDeleteManyParams = exports.createDeleteParams = exports.createContext = void 0;
 const nestedReads_1 = require("../utils/nestedReads");
-const uniqueFieldsByModel = {};
-const uniqueIndexFieldsByModel = {};
-client_1.Prisma.dmmf.datamodel.models.forEach((model) => {
-    // add unique fields derived from indexes
-    const uniqueIndexFields = [];
-    model.uniqueFields.forEach((field) => {
-        uniqueIndexFields.push(field.join("_"));
+const createContext = (dmmf) => {
+    const uniqueFieldsByModel = {};
+    const uniqueIndexFieldsByModel = {};
+    dmmf.datamodel.models.forEach((model) => {
+        // add unique fields derived from indexes
+        const uniqueIndexFields = [];
+        model.uniqueFields.forEach((field) => {
+            uniqueIndexFields.push(field.join("_"));
+        });
+        uniqueIndexFieldsByModel[model.name] = uniqueIndexFields;
+        // add id field and unique fields from @unique decorator
+        const uniqueFields = [];
+        model.fields.forEach((field) => {
+            if (field.isId || field.isUnique) {
+                uniqueFields.push(field.name);
+            }
+        });
+        uniqueFieldsByModel[model.name] = uniqueFields;
     });
-    uniqueIndexFieldsByModel[model.name] = uniqueIndexFields;
-    // add id field and unique fields from @unique decorator
-    const uniqueFields = [];
-    model.fields.forEach((field) => {
-        if (field.isId || field.isUnique) {
-            uniqueFields.push(field.name);
-        }
-    });
-    uniqueFieldsByModel[model.name] = uniqueFields;
-});
-const createDeleteParams = ({ field, createValue }, params) => {
+    return { uniqueFieldsByModel, uniqueIndexFieldsByModel };
+};
+exports.createContext = createContext;
+const createDeleteParams = (_, { field, createValue }, params) => {
     var _a, _b;
     if (!params.model ||
         // do nothing for delete: false
@@ -58,7 +61,7 @@ const createDeleteParams = ({ field, createValue }, params) => {
     };
 };
 exports.createDeleteParams = createDeleteParams;
-const createDeleteManyParams = (config, params) => {
+const createDeleteManyParams = (_, config, params) => {
     var _a;
     if (!params.model)
         return { params };
@@ -80,7 +83,7 @@ const createDeleteManyParams = (config, params) => {
     };
 };
 exports.createDeleteManyParams = createDeleteManyParams;
-const createUpdateParams = (config, params) => {
+const createUpdateParams = (_, config, params) => {
     var _a, _b, _c, _d;
     if (((_a = params.scope) === null || _a === void 0 ? void 0 : _a.relations) &&
         !params.scope.relations.to.isList &&
@@ -95,7 +98,7 @@ const createUpdateParams = (config, params) => {
     return { params };
 };
 exports.createUpdateParams = createUpdateParams;
-const createUpdateManyParams = (config, params) => {
+const createUpdateManyParams = (_, config, params) => {
     var _a, _b;
     // do nothing if args are not defined to allow Prisma to throw an error
     if (!params.args)
@@ -117,7 +120,7 @@ const createUpdateManyParams = (config, params) => {
     };
 };
 exports.createUpdateManyParams = createUpdateManyParams;
-const createUpsertParams = (_, params) => {
+const createUpsertParams = (_, __, params) => {
     var _a, _b;
     if (((_a = params.scope) === null || _a === void 0 ? void 0 : _a.relations) && !params.scope.relations.to.isList) {
         throw new Error(`prisma-extension-soft-delete: upsert of model "${params.model}" through "${(_b = params.scope) === null || _b === void 0 ? void 0 : _b.parentParams.model}.${params.scope.relations.to.name}" found. Upserts of soft deleted models through a toOne relation is not supported as it is possible to update a soft deleted record.`);
@@ -125,8 +128,9 @@ const createUpsertParams = (_, params) => {
     return { params };
 };
 exports.createUpsertParams = createUpsertParams;
-function validateFindUniqueParams(params, config) {
+function validateFindUniqueParams(context, params, config) {
     var _a;
+    const { uniqueIndexFieldsByModel } = context;
     const uniqueIndexFields = uniqueIndexFieldsByModel[params.model || ""] || [];
     const uniqueIndexField = Object.keys(((_a = params.args) === null || _a === void 0 ? void 0 : _a.where) || {}).find((key) => uniqueIndexFields.includes(key));
     // when unique index field is found it is not possible to use findFirst.
@@ -136,8 +140,9 @@ function validateFindUniqueParams(params, config) {
         throw new Error(`prisma-extension-soft-delete: query of model "${params.model}" through compound unique index field "${uniqueIndexField}" found. Queries of soft deleted models through a unique index are not supported. Set "allowCompoundUniqueIndexWhere" to true to override this behaviour.`);
     }
 }
-function shouldPassFindUniqueParamsThrough(params, config) {
+function shouldPassFindUniqueParamsThrough(context, params, config) {
     var _a, _b;
+    const { uniqueFieldsByModel, uniqueIndexFieldsByModel } = context;
     const uniqueFields = uniqueFieldsByModel[params.model || ""] || [];
     const uniqueIndexFields = uniqueIndexFieldsByModel[params.model || ""] || [];
     const uniqueIndexField = Object.keys(((_a = params.args) === null || _a === void 0 ? void 0 : _a.where) || {}).find((key) => uniqueIndexFields.includes(key));
@@ -152,12 +157,12 @@ function shouldPassFindUniqueParamsThrough(params, config) {
         // pass through if where object has a unique index field and allowCompoundUniqueIndexWhere is true
         !!(uniqueIndexField && config.allowCompoundUniqueIndexWhere));
 }
-const createFindUniqueParams = (config, params) => {
-    var _a;
-    if (shouldPassFindUniqueParamsThrough(params, config)) {
+const createFindUniqueParams = (context, config, params) => {
+    var _a, _b;
+    if (shouldPassFindUniqueParamsThrough(context, params, config)) {
         return { params };
     }
-    validateFindUniqueParams(params, config);
+    validateFindUniqueParams(context, params, config);
     return {
         params: {
             ...params,
@@ -166,19 +171,22 @@ const createFindUniqueParams = (config, params) => {
                 ...params.args,
                 where: {
                     ...(_a = params.args) === null || _a === void 0 ? void 0 : _a.where,
-                    [config.field]: config.createValue(false),
+                    // allow overriding the deleted field in where
+                    ...((0, nestedReads_1.isDeletedFieldOverWritten)(config.field, (_b = params.args) === null || _b === void 0 ? void 0 : _b.where)
+                        ? {}
+                        : { [config.field]: config.createValue(false) }),
                 },
             },
         },
     };
 };
 exports.createFindUniqueParams = createFindUniqueParams;
-const createFindUniqueOrThrowParams = (config, params) => {
-    var _a;
-    if (shouldPassFindUniqueParamsThrough(params, config)) {
+const createFindUniqueOrThrowParams = (context, config, params) => {
+    var _a, _b;
+    if (shouldPassFindUniqueParamsThrough(context, params, config)) {
         return { params };
     }
-    validateFindUniqueParams(params, config);
+    validateFindUniqueParams(context, params, config);
     return {
         params: {
             ...params,
@@ -187,14 +195,17 @@ const createFindUniqueOrThrowParams = (config, params) => {
                 ...params.args,
                 where: {
                     ...(_a = params.args) === null || _a === void 0 ? void 0 : _a.where,
-                    [config.field]: config.createValue(false),
+                    // allow overriding the deleted field in where
+                    ...((0, nestedReads_1.isDeletedFieldOverWritten)(config.field, (_b = params.args) === null || _b === void 0 ? void 0 : _b.where)
+                        ? {}
+                        : { [config.field]: config.createValue(false) }),
                 },
             },
         },
     };
 };
 exports.createFindUniqueOrThrowParams = createFindUniqueOrThrowParams;
-const createFindFirstParams = (config, params) => {
+const createFindFirstParams = (_, config, params) => {
     var _a, _b;
     return {
         params: {
@@ -214,7 +225,7 @@ const createFindFirstParams = (config, params) => {
     };
 };
 exports.createFindFirstParams = createFindFirstParams;
-const createFindFirstOrThrowParams = (config, params) => {
+const createFindFirstOrThrowParams = (_, config, params) => {
     var _a, _b;
     return {
         params: {
@@ -234,7 +245,7 @@ const createFindFirstOrThrowParams = (config, params) => {
     };
 };
 exports.createFindFirstOrThrowParams = createFindFirstOrThrowParams;
-const createFindManyParams = (config, params) => {
+const createFindManyParams = (_, config, params) => {
     var _a, _b;
     return {
         params: {
@@ -255,7 +266,7 @@ const createFindManyParams = (config, params) => {
 };
 exports.createFindManyParams = createFindManyParams;
 /*GroupBy */
-const createGroupByParams = (config, params) => {
+const createGroupByParams = (_, config, params) => {
     var _a, _b;
     return {
         params: {
@@ -275,7 +286,7 @@ const createGroupByParams = (config, params) => {
     };
 };
 exports.createGroupByParams = createGroupByParams;
-const createCountParams = (config, params) => {
+const createCountParams = (_, config, params) => {
     const args = params.args || {};
     const where = args.where || {};
     return {
@@ -295,7 +306,7 @@ const createCountParams = (config, params) => {
     };
 };
 exports.createCountParams = createCountParams;
-const createAggregateParams = (config, params) => {
+const createAggregateParams = (_, config, params) => {
     const args = params.args || {};
     const where = args.where || {};
     return {
@@ -315,7 +326,7 @@ const createAggregateParams = (config, params) => {
     };
 };
 exports.createAggregateParams = createAggregateParams;
-const createWhereParams = (config, params) => {
+const createWhereParams = (_, config, params) => {
     var _a;
     if (!params.scope)
         return { params };
@@ -344,7 +355,7 @@ const createWhereParams = (config, params) => {
     };
 };
 exports.createWhereParams = createWhereParams;
-const createIncludeParams = (config, params) => {
+const createIncludeParams = (_, config, params) => {
     var _a, _b, _c, _d, _e, _f;
     // includes of toOne relation cannot filter deleted records using params
     // instead ensure that the deleted field is selected and filter the results
@@ -374,7 +385,7 @@ const createIncludeParams = (config, params) => {
     };
 };
 exports.createIncludeParams = createIncludeParams;
-const createSelectParams = (config, params) => {
+const createSelectParams = (_, config, params) => {
     var _a, _b, _c, _d, _e, _f;
     // selects in includes are handled by createIncludeParams
     if (((_a = params.scope) === null || _a === void 0 ? void 0 : _a.parentParams.operation) === "include") {

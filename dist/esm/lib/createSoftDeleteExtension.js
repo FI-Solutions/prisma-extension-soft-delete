@@ -1,13 +1,13 @@
 import { Prisma as PrismaExtensions } from "@prisma/client/extension";
 import { withNestedOperations, } from "@roundtreasury/prisma-extension-nested-operations";
-import { createAggregateParams, createCountParams, createDeleteManyParams, createDeleteParams, createFindFirstParams, createFindFirstOrThrowParams, createFindManyParams, createFindUniqueParams, createFindUniqueOrThrowParams, createIncludeParams, createSelectParams, createUpdateManyParams, createUpdateParams, createUpsertParams, createWhereParams, createGroupByParams, } from "./helpers/createParams";
+import { createAggregateParams, createCountParams, createDeleteManyParams, createDeleteParams, createFindFirstParams, createFindFirstOrThrowParams, createFindManyParams, createFindUniqueParams, createFindUniqueOrThrowParams, createIncludeParams, createSelectParams, createUpdateManyParams, createUpdateParams, createUpsertParams, createWhereParams, createGroupByParams, createContext, } from "./helpers/createParams";
 import { modifyReadResult } from "./helpers/modifyResult";
 export function createSoftDeleteExtension({ models, defaultConfig = {
     field: "deleted",
     createValue: Boolean,
     allowToOneUpdates: false,
     allowCompoundUniqueIndexWhere: false,
-}, }) {
+}, dmmf, }) {
     if (!defaultConfig.field) {
         throw new Error("prisma-extension-soft-delete: defaultConfig.field is required");
     }
@@ -23,27 +23,28 @@ export function createSoftDeleteExtension({ models, defaultConfig = {
                 typeof config === "boolean" && config ? defaultConfig : config;
         }
     });
+    const context = createContext(dmmf);
     const createParamsByModel = Object.keys(modelConfig).reduce((acc, model) => {
         const config = modelConfig[model];
         return {
             ...acc,
             [model]: {
-                delete: createDeleteParams.bind(null, config),
-                deleteMany: createDeleteManyParams.bind(null, config),
-                update: createUpdateParams.bind(null, config),
-                updateMany: createUpdateManyParams.bind(null, config),
-                upsert: createUpsertParams.bind(null, config),
-                findFirst: createFindFirstParams.bind(null, config),
-                findFirstOrThrow: createFindFirstOrThrowParams.bind(null, config),
-                findUnique: createFindUniqueParams.bind(null, config),
-                findUniqueOrThrow: createFindUniqueOrThrowParams.bind(null, config),
-                findMany: createFindManyParams.bind(null, config),
-                count: createCountParams.bind(null, config),
-                aggregate: createAggregateParams.bind(null, config),
-                where: createWhereParams.bind(null, config),
-                include: createIncludeParams.bind(null, config),
-                select: createSelectParams.bind(null, config),
-                groupBy: createGroupByParams.bind(null, config),
+                delete: createDeleteParams.bind(null, context, config),
+                deleteMany: createDeleteManyParams.bind(null, context, config),
+                update: createUpdateParams.bind(null, context, config),
+                updateMany: createUpdateManyParams.bind(null, context, config),
+                upsert: createUpsertParams.bind(null, context, config),
+                findFirst: createFindFirstParams.bind(null, context, config),
+                findFirstOrThrow: createFindFirstOrThrowParams.bind(null, context, config),
+                findUnique: createFindUniqueParams.bind(null, context, config),
+                findUniqueOrThrow: createFindUniqueOrThrowParams.bind(null, context, config),
+                findMany: createFindManyParams.bind(null, context, config),
+                count: createCountParams.bind(null, context, config),
+                aggregate: createAggregateParams.bind(null, context, config),
+                where: createWhereParams.bind(null, context, config),
+                include: createIncludeParams.bind(null, context, config),
+                select: createSelectParams.bind(null, context, config),
+                groupBy: createGroupByParams.bind(null, context, config),
             },
         };
     }, {});
@@ -52,8 +53,8 @@ export function createSoftDeleteExtension({ models, defaultConfig = {
         return {
             ...acc,
             [model]: {
-                include: modifyReadResult.bind(null, config),
-                select: modifyReadResult.bind(null, config),
+                include: modifyReadResult.bind(null, context, config),
+                select: modifyReadResult.bind(null, context, config),
             },
         };
     }, {});
@@ -65,6 +66,7 @@ export function createSoftDeleteExtension({ models, defaultConfig = {
                 $allModels: {
                     // @ts-expect-error - we don't know what the client is
                     $allOperations: withNestedOperations({
+                        dmmf,
                         async $rootOperation(initialParams) {
                             var _a, _b;
                             const createParams = (_a = createParamsByModel[initialParams.model || ""]) === null || _a === void 0 ? void 0 : _a[initialParams.operation];

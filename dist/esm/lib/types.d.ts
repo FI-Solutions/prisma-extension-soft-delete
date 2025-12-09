@@ -1,4 +1,9 @@
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
+import type { BaseDMMF } from "@prisma/client/runtime/library";
+export type Context = {
+    uniqueFieldsByModel: Record<string, string[]>;
+    uniqueIndexFieldsByModel: Record<string, string[]>;
+};
 export type ModelConfig = {
     field: string;
     createValue: (deleted: boolean) => any;
@@ -8,4 +13,5 @@ export type ModelConfig = {
 export type Config = {
     models: Partial<Record<Prisma.ModelName, ModelConfig | boolean>>;
     defaultConfig?: ModelConfig;
+    dmmf: BaseDMMF;
 };

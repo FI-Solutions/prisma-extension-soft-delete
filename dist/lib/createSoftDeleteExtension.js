@@ -10,7 +10,7 @@ function createSoftDeleteExtension({ models, defaultConfig = {
     createValue: Boolean,
     allowToOneUpdates: false,
     allowCompoundUniqueIndexWhere: false,
-}, }) {
+}, dmmf, }) {
     if (!defaultConfig.field) {
         throw new Error("prisma-extension-soft-delete: defaultConfig.field is required");
     }
@@ -26,27 +26,28 @@ function createSoftDeleteExtension({ models, defaultConfig = {
                 typeof config === "boolean" && config ? defaultConfig : config;
         }
     });
+    const context = (0, createParams_1.createContext)(dmmf);
     const createParamsByModel = Object.keys(modelConfig).reduce((acc, model) => {
         const config = modelConfig[model];
         return {
             ...acc,
             [model]: {
-                delete: createParams_1.createDeleteParams.bind(null, config),
-                deleteMany: createParams_1.createDeleteManyParams.bind(null, config),
-                update: createParams_1.createUpdateParams.bind(null, config),
-                updateMany: createParams_1.createUpdateManyParams.bind(null, config),
-                upsert: createParams_1.createUpsertParams.bind(null, config),
-                findFirst: createParams_1.createFindFirstParams.bind(null, config),
-                findFirstOrThrow: createParams_1.createFindFirstOrThrowParams.bind(null, config),
-                findUnique: createParams_1.createFindUniqueParams.bind(null, config),
-                findUniqueOrThrow: createParams_1.createFindUniqueOrThrowParams.bind(null, config),
-                findMany: createParams_1.createFindManyParams.bind(null, config),
-                count: createParams_1.createCountParams.bind(null, config),
-                aggregate: createParams_1.createAggregateParams.bind(null, config),
-                where: createParams_1.createWhereParams.bind(null, config),
-                include: createParams_1.createIncludeParams.bind(null, config),
-                select: createParams_1.createSelectParams.bind(null, config),
-                groupBy: createParams_1.createGroupByParams.bind(null, config),
+                delete: createParams_1.createDeleteParams.bind(null, context, config),
+                deleteMany: createParams_1.createDeleteManyParams.bind(null, context, config),
+                update: createParams_1.createUpdateParams.bind(null, context, config),
+                updateMany: createParams_1.createUpdateManyParams.bind(null, context, config),
+                upsert: createParams_1.createUpsertParams.bind(null, context, config),
+                findFirst: createParams_1.createFindFirstParams.bind(null, context, config),
+                findFirstOrThrow: createParams_1.createFindFirstOrThrowParams.bind(null, context, config),
+                findUnique: createParams_1.createFindUniqueParams.bind(null, context, config),
+                findUniqueOrThrow: createParams_1.createFindUniqueOrThrowParams.bind(null, context, config),
+                findMany: createParams_1.createFindManyParams.bind(null, context, config),
+                count: createParams_1.createCountParams.bind(null, context, config),
+                aggregate: createParams_1.createAggregateParams.bind(null, context, config),
+                where: createParams_1.createWhereParams.bind(null, context, config),
+                include: createParams_1.createIncludeParams.bind(null, context, config),
+                select: createParams_1.createSelectParams.bind(null, context, config),
+                groupBy: createParams_1.createGroupByParams.bind(null, context, config),
             },
         };
     }, {});
@@ -55,8 +56,8 @@ function createSoftDeleteExtension({ models, defaultConfig = {
         return {
             ...acc,
             [model]: {
-                include: modifyResult_1.modifyReadResult.bind(null, config),
-                select: modifyResult_1.modifyReadResult.bind(null, config),
+                include: modifyResult_1.modifyReadResult.bind(null, context, config),
+                select: modifyResult_1.modifyReadResult.bind(null, context, config),
             },
         };
     }, {});
@@ -68,6 +69,7 @@ function createSoftDeleteExtension({ models, defaultConfig = {
                 $allModels: {
                     // @ts-expect-error - we don't know what the client is
                     $allOperations: (0, prisma_extension_nested_operations_1.withNestedOperations)({
+                        dmmf,
                         async $rootOperation(initialParams) {
                             var _a, _b;
                             const createParams = (_a = createParamsByModel[initialParams.model || ""]) === null || _a === void 0 ? void 0 : _a[initialParams.operation];
