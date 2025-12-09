@@ -1,5 +1,5 @@
 import { Prisma as PrismaExtensions } from "@prisma/client/extension";
-import { withNestedOperations, } from "prisma-extension-nested-operations";
+import { withNestedOperations, } from "@roundtreasury/prisma-extension-nested-operations";
 import { createAggregateParams, createCountParams, createDeleteManyParams, createDeleteParams, createFindFirstParams, createFindFirstOrThrowParams, createFindManyParams, createFindUniqueParams, createFindUniqueOrThrowParams, createIncludeParams, createSelectParams, createUpdateManyParams, createUpdateParams, createUpsertParams, createWhereParams, createGroupByParams, } from "./helpers/createParams";
 import { modifyReadResult } from "./helpers/modifyResult";
 export function createSoftDeleteExtension({ models, defaultConfig = {

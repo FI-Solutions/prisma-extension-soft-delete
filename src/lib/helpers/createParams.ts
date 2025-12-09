@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { NestedParams } from "prisma-extension-nested-operations";
+import { NestedParams } from "@roundtreasury/prisma-extension-nested-operations";
 
 import { ModelConfig } from "../types";
 

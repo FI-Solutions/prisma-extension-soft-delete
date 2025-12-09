@@ -1,4 +1,4 @@
-import { NestedParams } from "prisma-extension-nested-operations";
+import { NestedParams } from "@roundtreasury/prisma-extension-nested-operations";
 import { ModelConfig } from "../types";
 export type Params = Omit<NestedParams<any>, "operation"> & {
     operation: string;

@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createSoftDeleteExtension = void 0;
 const extension_1 = require("@prisma/client/extension");
-const prisma_extension_nested_operations_1 = require("prisma-extension-nested-operations");
+const prisma_extension_nested_operations_1 = require("@roundtreasury/prisma-extension-nested-operations");
 const createParams_1 = require("./helpers/createParams");
 const modifyResult_1 = require("./helpers/modifyResult");
 function createSoftDeleteExtension({ models, defaultConfig = {
