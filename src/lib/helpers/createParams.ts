@@ -216,7 +216,8 @@ export const createFindUniqueParams: CreateParams = (config, params) => {
         ...params.args,
         where: {
           ...params.args?.where,
-          [config.field]: config.createValue(false),
+          // allow overriding the deleted field in where
+          [config.field]: params.args?.where?.[config.field] || config.createValue(false),
         },
       },
     },
@@ -238,7 +239,8 @@ export const createFindUniqueOrThrowParams: CreateParams = (config, params) => {
         ...params.args,
         where: {
           ...params.args?.where,
-          [config.field]: config.createValue(false),
+          // allow overriding the deleted field in where
+          [config.field]: params.args?.where?.[config.field] || config.createValue(false),
         },
       },
     },
